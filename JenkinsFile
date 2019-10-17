@@ -1,0 +1,23 @@
+podTemplate(
+    name: 'test-pod',
+    label: 'test-pod',
+    containers: [
+        containerTemplate(name: 'hola', image: 'maven:3.3.9-jdk-8-alpine', ttyEnabled: true, command: 'cat'),
+    ],
+    volumes: [
+        hostPathVolume(mountPath: '/var/run/docker.sock',
+        hostPath: '/var/run/docker.sock'),
+    ]
+    ,
+    {
+        //node = the pod label
+        node('test-pod'){
+            //container = the container label
+            stage('Hola'){
+                container('hola'){
+                    // This is where we build our code.
+                    echo "ajlksdjflaf"
+                }
+            }
+        }
+    })
