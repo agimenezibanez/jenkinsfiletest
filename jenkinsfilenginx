@@ -1,0 +1,33 @@
+pipeline{
+    agent {
+        kubernetes{
+            label 'kubectl'
+            defaultContainer 'kubectl'
+            yaml """
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kubectl
+  labels:
+    name: kubectl
+spec:
+  containers:
+  - name: kubectl
+    image: lachlanevenson/k8s-kubectl:v1.8.0
+    command:
+    - cat
+    tty: true
+"""
+        }
+    }
+    stages{
+            stage('Deploy y Service') {
+                steps {
+                    sh """kubectl apply -f https://raw.githubusercontent.com/agimenezibanez/jenkinsfiletest/master/nginx.yaml
+                        sleep 20
+                        kubectl delete deployment nginx
+                        kubectl delete service nginx"""
+                }
+            }
+        }
+}
