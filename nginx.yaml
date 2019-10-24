@@ -1,0 +1,43 @@
+kind: Deployment
+apiVersion: apps/v1 # Usa apps/v1beta2 para versiones anteriores a 1.9.0
+metadata:
+  name: nginx
+spec:
+  selector:
+    matchLabels:
+      app: nginx
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: agimenezibanez/nginx-prueba:latest
+        ports:
+        - containerPort: 80
+---
+kind: Service 
+apiVersion: v1 
+metadata:
+  name: nginx
+spec:
+  # Expose the service on a static port on each node
+  # so that we can access the service from outside the cluster 
+  type: NodePort
+
+  # When the node receives a request on the static port (30163)
+  # "select pods with the label 'app' set to 'echo-hostname'"
+  # and forward the request to one of them
+  selector:
+    app: nginx 
+
+  ports:
+    # Three types of ports for a service
+    # nodePort - a static port assigned on each the node
+    # port - port exposed internally in the cluster
+    # targetPort - the container port to send requests to
+    - nodePort: 30163
+      port: 80 
+      targetPort: 80
