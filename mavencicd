@@ -1,0 +1,36 @@
+pipeline{
+    agent {
+        kubernetes{
+            label 'mavenapp'
+            defaultContainer 'jnlp'
+            yaml """
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ci
+  labels:
+    component: ci
+spec:
+  containers:
+  - name: maven
+    image: agimenezibanez/maventest:latest
+    command:
+    - cat
+    tty: true
+"""
+        }
+    }
+    stages{
+            stage('Maven Build') {
+                steps {
+                    sh """cd ..
+                          git clone https://github.com/spring-projects/spring-petclinic ./proyecto
+                          cp -r ./proyecto/* ./build/
+                          cd ./build
+                          mvn package
+                          mvn test"""
+                    junit 
+                }
+            }
+        }
+}
