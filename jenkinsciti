@@ -1,0 +1,67 @@
+pipeline{
+    agent {
+        kubernetes{
+            defaultContainer 'jnlp'
+            yaml """
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    name: agent
+spec:
+  containers:
+  - name: kubectl
+    image: lachlanevenson/k8s-kubectl:v1.8.0
+    command:
+    - cat
+    tty: true
+  - name: unittest
+    image: agimenezibanez/dependencias:dev
+    command:
+    - cat
+    tty: true
+  - name: dockerind
+    image: docker:dind
+    command:
+    - cat
+    tty: true
+"""
+        }
+    }
+    stages{
+          stage('Unit Test') {
+            steps {
+              container('unittest') {
+              sh """git clone agimenezibanez@github:citimxpy
+              coverage run -m pytest gateway/test/unit
+              coverage run -m pytest orders/test/unit
+              coverage report -m"""
+              }
+            }
+          }
+          stage('Build y Push') {
+            steps {
+              container('dockerind') {
+              sh """docker build -t agimenezibanez/nameko-example-gateway:dev ./gateway/
+              docker build -t agimenezibanez/nameko-example-products:dev ./products/
+              docker build -t agimenezibanez/nameko-example-orders:dev ./orders/
+              docker login
+              docker push
+              """
+              }
+            }
+          }
+          stage('Deploy') {
+            steps {
+              container('kubectl') {
+              sh """kubectl --namespace=testing apply -f ./k8s/charts/gateway/templates/ingress.yaml
+              kubectl --namespace=testing apply -f ./k8s/charts/gateway/templates/deployment.yaml
+              kubectl --namespace=testing apply -f ./k8s/charts/gateway/templates/service.yaml
+              kubectl --namespace=testing apply -f ./k8s/charts/products/templates/deployment.yaml
+              kubectl --namespace=testing apply -f ./k8s/charts/orders/templates/deployment.yaml
+              """
+              }
+            }
+          }
+    }
+}
