@@ -1,13 +1,14 @@
 pipeline{
     agent {
         kubernetes{
+            label 'demo-citi-py'
             defaultContainer 'jnlp'
             yaml """
 apiVersion: v1
 kind: Pod
 metadata:
   labels:
-    name: agent
+    name: citi
 spec:
   containers:
   - name: kubectl
@@ -20,11 +21,19 @@ spec:
     command:
     - cat
     tty: true
-  - name: dockerind
-    image: docker:dind
+    # Explicado docker en https://pushbuildtestdeploy.com/jenkins-on-kubernetes-building-docker-images/
+  - name: docker
+    image: agimenezibanez/docker-git:dind
     command:
     - cat
     tty: true
+    volumeMounts:
+    - mountPath: /var/run/docker.sock
+      name: docker-sock
+  volumes:
+    - name: docker-sock
+      hostPath:
+        path: /var/run/docker.sock
 """
         }
     }
@@ -32,7 +41,8 @@ spec:
           stage('Unit Test') {
             steps {
               container('unittest') {
-              sh """git clone agimenezibanez@github:citimxpy
+              sh """git clone https://github.com/agimenezibanez/citimxpy
+              cd citimxpy
               coverage run -m pytest gateway/test/unit
               coverage run -m pytest orders/test/unit
               coverage report -m"""
@@ -41,12 +51,16 @@ spec:
           }
           stage('Build y Push') {
             steps {
-              container('dockerind') {
-              sh """docker build -t agimenezibanez/nameko-example-gateway:dev ./gateway/
-              docker build -t agimenezibanez/nameko-example-products:dev ./products/
+              container('docker') {
+              sh """git clone https://github.com/agimenezibanez/citimxpy
+              cd citimxpy
+              docker login -u agimenezibanez -p 1234512345
+              docker build -t agimenezibanez/nameko-example-gateway:dev ./gateway/
+              docker build -t agimenezibanez/nameko-example-gateway:dev ./products/
               docker build -t agimenezibanez/nameko-example-orders:dev ./orders/
-              docker login
-              docker push
+              docker push agimenezibanez/nameko-example-gateway:dev
+              docker push agimenezibanez/nameko-example-products:dev
+              docker push agimenezibanez/nameko-example-orders:dev
               """
               }
             }
@@ -54,11 +68,11 @@ spec:
           stage('Deploy') {
             steps {
               container('kubectl') {
-              sh """kubectl --namespace=testing apply -f ./k8s/charts/gateway/templates/ingress.yaml
-              kubectl --namespace=testing apply -f ./k8s/charts/gateway/templates/deployment.yaml
-              kubectl --namespace=testing apply -f ./k8s/charts/gateway/templates/service.yaml
-              kubectl --namespace=testing apply -f ./k8s/charts/products/templates/deployment.yaml
-              kubectl --namespace=testing apply -f ./k8s/charts/orders/templates/deployment.yaml
+              sh """kubectl --namespace=testing apply -f https://raw.githubusercontent.com/agimenezibanez/citimxpy/master/k8s/charts/gateway/templates/ingress.yaml
+              kubectl --namespace=testing apply -f https://raw.githubusercontent.com/agimenezibanez/citimxpy/master/k8s/charts/gateway/templates/deployment.yaml
+              kubectl --namespace=testing apply -f https://raw.githubusercontent.com/agimenezibanez/citimxpy/master/k8s/charts/gateway/templates/service.yaml
+              kubectl --namespace=testing apply -f https://raw.githubusercontent.com/agimenezibanez/citimxpy/master/k8s/charts/products/templates/deployment.yaml
+              kubectl --namespace=testing apply -f https://raw.githubusercontent.com/agimenezibanez/citimxpy/master/k8s/charts/orders/templates/deployment.yaml
               """
               }
             }
